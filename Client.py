@@ -2,6 +2,14 @@ import socket
 import threading
 from enum import Enum
 from User import User
+import re
+from StreamServer import SEPARATOR
+import pickle
+import struct
+import imutils
+import cv2
+
+number_pattern = re.compile("^[0-9]+$")
 
 
 class FirewallType(Enum):
@@ -17,11 +25,22 @@ class State(Enum):
     stream = 4
 
 
+class VideoRequestState(Enum):
+    not_started = 0
+    pending_for_list = 1  # has sent request, but not received list of videos yet
+    received = 2
+    pending_for_video = 3
+    idle = 4
+
+
 class Client(User):
     ports = []
     firewall_type = FirewallType.blacklist
     proxy = False
     state = State.main_menu
+
+    video_request_state = VideoRequestState.not_started
+    videos_num = 0
 
     def __init__(self):
         self.connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -110,14 +129,86 @@ class Client(User):
                     except:
                         print('Invalid message')
                 elif self.state == State.chat:
+                    print("here in chat state")
                     pass
                 elif self.state == State.stream:
-                    pass
+                    if self.video_request_state == VideoRequestState.not_started:
+                        # send request to get list of videos
+                        self.connection.send('list of videos'.encode('ascii'))
+                        self.video_request_state = VideoRequestState.idle
+                        wait_thread = threading.Thread(target=self.wait_for_video_list, args=())
+                        wait_thread.start()
+                    elif self.video_request_state == VideoRequestState.pending_for_list:
+                        print("Please enter video id:")
+                        video_id = input()
+                        is_correct = self.check_video_id(video_id)
+                        if is_correct:
+                            self.connection.send(video_id.encode('ascii'))
+                            self.video_request_state = VideoRequestState.idle
+                            wait_thread = threading.Thread(target=self.receive_video, args=())
+                            wait_thread.start()
+                        else:
+                            print("Invalid Video Id")
+
             except:
                 if self.connection is not None:
                     self.connection.close()
                 print('An exception occurred.')
                 break
+
+    def receive_video(self):
+        # Todo: receive video
+
+        data = b""
+        payload_size = struct.calcsize("Q")
+
+        print("Starting to read bytes..")
+        while True:
+            print("----", len(data))
+            while len(data) < payload_size:
+                print("1. ++", len(data))
+                packet = self.connection.recv(4096)
+                if not packet:
+                    break
+                data += packet
+
+            packed_msg_size = data[:payload_size]
+            data = data[payload_size:]
+            msg_size = struct.unpack("Q", packed_msg_size)[0]
+
+            while len(data) < msg_size:
+                print("2. ++", len(data))
+                data += self.connection.recv(4096)
+
+            frame_data = data[:msg_size]
+            data = data[msg_size:]
+
+            frame = pickle.loads(frame_data)
+            print("1.here", len(frame), frame.shape, type(frame))
+            cv2.imshow("Receiving...", frame)
+            print("2.here")
+
+            key = cv2.waitKey(10)
+
+            if key == 13:
+                break
+
+
+    def check_video_id(self, vid_id):
+        if not number_pattern.match(vid_id):
+            return False
+        if int(vid_id) < 1 or int(vid_id) > self.videos_num:
+            return False
+        return True
+
+    def wait_for_video_list(self):
+        recv_message = self.connection.recv(1024).decode('ascii').strip().split(SEPARATOR)
+        self.videos_num = int(recv_message[0])
+
+        print("-------- List Of Videos ({}) --------".format(self.videos_num))
+        print(recv_message[1])
+
+        self.video_request_state = VideoRequestState.pending_for_list
 
     def check_firewall(self, port):
         if self.firewall_type is FirewallType.blacklist:
@@ -155,6 +246,7 @@ class Client(User):
                     print('Invalid command.')
         except:
             print('Invalid command.')
+
 
 if __name__ == '__main__':
     client = Client()
