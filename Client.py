@@ -166,6 +166,7 @@ class Client(User):
         # wait_thread = threading.Thread(target=self.wait_key, args=())
         # wait_thread.start()
 
+        print("For quit streaming, you can click 'q' key...")
         while True:
             while len(data) < payload_size:
                 packet = self.connection.recv(4 * 1024)  # 4K
@@ -184,54 +185,52 @@ class Client(User):
             # if cv2.waitKey(25) & 0xFF == ord('q'):
             #     break
             cv2.imshow("RECEIVING VIDEO", frame)
-            if cv2.waitKey(33) == ord('a'):
-                print("pressed a")
+            if cv2.waitKey(25) & 0xFF == ord('q'):
+                self.end_streaming()
+                break
+
+    def end_streaming(self):
+        print("stream ended")
         cv2.destroyAllWindows()
+        cv2.waitKey(1)
 
-    def wait_key(self):
-        if cv2.waitKey(33) == ord('a'):
-            print("pressed a")
+    # key = cv2.waitKey(13) & 0xFF
+    # if key == 13:
+    #     break
 
-
-
-
-# key = cv2.waitKey(13) & 0xFF
-            # if key == 13:
-            #     break
-
-        # data = b""
-        # payload_size = struct.calcsize("Q")
-        #
-        # print("Starting to read bytes..")
-        # while True:
-        #     print("----", len(data))
-        #     while len(data) < payload_size:
-        #         print("1. ++", len(data))
-        #         packet = self.connection.recv(4096)
-        #         if not packet:
-        #             break
-        #         data += packet
-        #
-        #     packed_msg_size = data[:payload_size]
-        #     data = data[payload_size:]
-        #     msg_size = struct.unpack("Q", packed_msg_size)[0]
-        #
-        #     while len(data) < msg_size:
-        #         print("2. ++", len(data))
-        #         data += self.connection.recv(4096)
-        #
-        #     frame_data = data[:msg_size]
-        #     data = data[msg_size:]
-        #
-        #     frame = pickle.loads(frame_data)
-        #     print("1.here", len(frame), frame.shape, type(frame))
-        #     cv2.imshow("Receiving...", frame)
-        #     print("2.here")
-        #
-        #     key = cv2.waitKey(10)
-        #
-        #     if key == 13:
-        #         break
+    # data = b""
+    # payload_size = struct.calcsize("Q")
+    #
+    # print("Starting to read bytes..")
+    # while True:
+    #     print("----", len(data))
+    #     while len(data) < payload_size:
+    #         print("1. ++", len(data))
+    #         packet = self.connection.recv(4096)
+    #         if not packet:
+    #             break
+    #         data += packet
+    #
+    #     packed_msg_size = data[:payload_size]
+    #     data = data[payload_size:]
+    #     msg_size = struct.unpack("Q", packed_msg_size)[0]
+    #
+    #     while len(data) < msg_size:
+    #         print("2. ++", len(data))
+    #         data += self.connection.recv(4096)
+    #
+    #     frame_data = data[:msg_size]
+    #     data = data[msg_size:]
+    #
+    #     frame = pickle.loads(frame_data)
+    #     print("1.here", len(frame), frame.shape, type(frame))
+    #     cv2.imshow("Receiving...", frame)
+    #     print("2.here")
+    #
+    #     key = cv2.waitKey(10)
+    #
+    #     if key == 13:
+    #         break
 
     def check_video_id(self, vid_id):
         if not number_pattern.match(vid_id):

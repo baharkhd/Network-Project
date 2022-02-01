@@ -85,14 +85,10 @@ class StreamServer:
                         a = pickle.dumps(frame)
                         message = struct.pack("Q", len(a)) + a
                         client.sendall(message)
-
-                        # cv2.imshow('TRANSMITTING VIDEO',frame)
-                        key = cv2.waitKey(1) & 0xFF
-                        if key == ord('q'):
-                            client.close()
-
         except:
-            client.close()
+            print("exception occured!")
+            vid.release()
+            cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
