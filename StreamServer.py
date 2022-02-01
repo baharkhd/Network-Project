@@ -41,7 +41,6 @@ class StreamServer:
         videos_path = os.path.join(os.getcwd(), 'videos')
 
         for i, filename in enumerate(os.listdir(videos_path)):
-            # video_path = os.path.join(videos_path, filename)
             video = Video(name=filename, id=i + 1)
             self.videos.append(video)
 
@@ -87,8 +86,9 @@ class StreamServer:
                         client.sendall(message)
         except:
             print("exception occured!")
-            vid.release()
-            cv2.destroyAllWindows()
+            if vid:
+                vid.release()
+                cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
