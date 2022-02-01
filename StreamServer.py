@@ -75,18 +75,24 @@ class StreamServer:
         # Todo: send video
 
         video_path = os.path.join(os.getcwd(), 'videos', video.name)
+        try:
+            while True:
+                if client:
+                    vid = cv2.VideoCapture(video_path)
 
-        vid = cv2.VideoCapture(video_path)
-        while vid.isOpened():
-            print("is opened")
-            img, frame = vid.read()
-            a = pickle.dumps(frame)
-            message = struct.pack("Q", len(a)) + a
-            client.sendall(message)
+                    while vid.isOpened():
+                        img, frame = vid.read()
+                        a = pickle.dumps(frame)
+                        message = struct.pack("Q", len(a)) + a
+                        client.sendall(message)
 
-            key = cv2.waitKey(10)
-            if key == 13:
-                print("key is 13")
+                        # cv2.imshow('TRANSMITTING VIDEO',frame)
+                        key = cv2.waitKey(1) & 0xFF
+                        if key == ord('q'):
+                            client.close()
+
+        except:
+            client.close()
 
 
 if __name__ == "__main__":
@@ -106,7 +112,6 @@ if __name__ == "__main__":
     #         if ret:
     #             if cv2.waitKey(25) & 0xFF == ord('q'):
     #                 break
-    #             print("-----", len(frame), frame.shape, type(frame))
     #             cv2.imshow('Frame',frame)
     #             if val != 'eof' and audio_frame is not None:
     #                 #audio
