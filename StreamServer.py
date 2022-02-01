@@ -51,7 +51,7 @@ class StreamServer:
 
         while True:
             message = client.recv(4096).decode('ascii').strip()
-            print("* message recieved from client: ", message)
+            print("* message received from client: ", message)
 
             number_pattern = re.compile("^[0-9]+$")
 
