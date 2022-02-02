@@ -151,11 +151,13 @@ class Client(User):
                         else:
                             print('The command must be an integer from 1 to 3.')
                     elif self.chat_state == ChatStates.mailbox:
-                        print('Enter \'Q\' to go back to main menu.')
+                        print('Enter \'0\' to go back to main menu.')
+                        self.get_usernames()
                         command = input()
                         self.connection.send(command.encode('ascii'))
-                        if command == 'Q':
+                        if command == '0':
                             self.chat_state = ChatStates.login_signup_menu
+
 
 
                 elif self.state == State.stream:
@@ -185,7 +187,7 @@ class Client(User):
                 break
 
     def chat_login_signup_menu(self):
-        print('1. Sign Up\n2. Login\n3. Exit\n')
+        print('1. Sign Up\n2. Login\n3. Exit')
 
     def signup(self):
         while True:
@@ -215,6 +217,16 @@ class Client(User):
         print(log_in_check)
         if log_in_check != 'Incorrect username or password.':
             self.chat_state = ChatStates.mailbox
+
+    def get_usernames(self):
+        user_count = int(self.connection.recv(4096).decode('ascii'))
+        for i in range(user_count):
+            msg = self.connection.recv(4096).decode('ascii')
+            msg = msg.split()
+            if int(msg[1]):
+                print(f'{msg[0]} ({int(msg[1])})')
+            else:
+                print(msg[0])
 
     def receive_video(self):
         # Todo: receive video

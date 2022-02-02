@@ -2,7 +2,7 @@ import socket
 import threading
 from datetime import datetime
 
-import Message
+from Message import Message
 from User import User
 
 
@@ -35,9 +35,9 @@ class ChatServer:
         # self.main_menu(client)
         while True:
             if state == 0:
-                state = self.handle_main_menu(client, state)
+                state, user = self.handle_main_menu(client, state)
             elif state == 1:
-                state = self.handle_mailbox(client, state)
+                state = self.handle_mailbox(client, state, user)
 
     def sign_up(self, client):
         while True:
@@ -64,41 +64,58 @@ class ChatServer:
         for user in self.users:
             if user.username == username and user.password == password:
                 client.send('Logged in successfully.'.encode('ascii'))
-                return 1
+                return 1, user
                 # break
         else:
             client.send('Incorrect username or password.'.encode('ascii'))
-            return 0
-
-    def show_users(self, client):
-        all_users = self.users
-        for user in all_users:
-            if user not in client.messages:
-                chat_initial = Message('', datetime(2000, 1, 1))
-                client.messages[user] = []
-                user.messages[client] = []
-                client.unreadMsgNum[user] = 0
-                user.unreadMsgNum[client] = 0
+            return 0, None
 
     def handle_main_menu(self, client, state):
         message = client.recv(4096).decode('ascii').strip()
         print("* message received from client: ", message)
+        user = None
         if message == '1':
             self.sign_up(client)
         elif message == '2':
-            state = self.login(client)
+            state, user = self.login(client)
         elif message == '3':
             pass
             # TODO exit
         else:
             msg = 'The command must be an integer from 1 to 3. lalalalalala'
             client.send(msg.encode('ascii'))
-        return state
+        return state, user
 
-    def handle_mailbox(self, client, state):
+    def handle_mailbox(self, client, state, user: User):
+        last_message = []
+        for u in self.users:
+            if u != user:
+                print(f'Check for error: {u.username}')
+                if u not in user.messages:
+                    m = Message(msg='', date=datetime(2000, 1, 1), sender=user, receiver=u)
+                    user.messages[u] = [m]
+                    u.messages[user] = [m]
+                    user.unreadMsgNum[u] = 0
+                    u.unreadMsgNum[user] = 0
+                last_message.append(
+                    {'username': u.username, 'date': u.messages[user][-1].date, 'unread': user.unreadMsgNum[u]})
+        last_message = sorted(last_message, key=lambda i: i['date'], reverse=True)
+        user_count = len(last_message)
+        client.send(str(user_count).encode('ascii'))
+        print(last_message)
+        for u in last_message:
+            msg = u['username'] + ' ' + str(u['unread'])
+            client.send(msg.encode('ascii'))
+
         message = client.recv(4096).decode('ascii').strip()
-        if message == 'Q':
+        if message == '0':
             state = 0
+        else:
+            for u in self.users:
+                if u.username == message:
+                    # TODO state 2
+                    break
+
         return state
 
 
