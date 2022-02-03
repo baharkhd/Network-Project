@@ -1,5 +1,6 @@
 import socket
 import threading
+import time
 from datetime import datetime
 
 from Message import Message
@@ -106,6 +107,7 @@ class ChatServer:
         for u in last_message:
             msg = u['username'] + ' ' + str(u['unread'])
             client.send(msg.encode('ascii'))
+            time.sleep(0.1)
 
         message = client.recv(4096).decode('ascii').strip()
         if message == '0':
