@@ -1,6 +1,7 @@
 import re
 import socket
 import threading
+from commons import CHAT_SERVER_PORT
 import time
 from datetime import datetime
 
@@ -12,7 +13,7 @@ class ChatServer:
     users = []
 
     def __init__(self):
-        addr = ('127.0.0.1', 5050)
+        addr = ('127.0.0.1', CHAT_SERVER_PORT)
 
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.bind(addr)

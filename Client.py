@@ -6,11 +6,19 @@ import threading
 from enum import Enum
 
 import cv2
+import time
+import queue
+import pyaudio
+import traceback
+from commons import STREAM_SERVER_PORT
 
 from StreamServer import SEPARATOR
 from User import User
 
 number_pattern = re.compile("^[0-9]+$")
+
+VIDEO_SOCKET = 'VIDEO_SOCKET'
+AUDIO_SOCKET = "AUDIO_SOCKET"
 
 
 class FirewallType(Enum):
@@ -32,6 +40,7 @@ class VideoRequestState(Enum):
     received = 2
     pending_for_video = 3
     idle = 4
+    after_ending_stream = 5
 
 
 class ChatStates(Enum):
@@ -50,9 +59,12 @@ class Client(User):
     chat_state = ChatStates.login_signup_menu
     videos_num = 0
 
+    stop_video = False
+
     def __init__(self):
         self.connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
+        self.video_stream_socket = None
+        self.audio_stream_socket = None
         self.start_client()
 
     def start_client(self):
@@ -117,17 +129,17 @@ class Client(User):
                                 self.connection.connect(('127.0.0.1', 5050))
                                 self.state = State.chat
                         elif inp == 'Stream':
-                            if not self.check_firewall(5060):
+                            if not self.check_firewall(STREAM_SERVER_PORT):
                                 print('Packet dropped due to firewall issues.')
                             else:
-                                self.connection.connect(('127.0.0.1', 5060))
+                                self.connection.connect(('127.0.0.1', STREAM_SERVER_PORT))
                                 self.state = State.stream
                         elif inp_[0] == 'Chat' or inp_[0] == 'Stream':
                             proxy_port = int(inp_[2])
                             if not self.check_firewall(proxy_port):
                                 print('Packet dropped due to firewall issues.')
                             else:
-                                forward_port = '5050' if inp_[0] == 'Chat' else '5060'
+                                forward_port = '5050' if inp_[0] == 'Chat' else 'STREAM_SERVER_PORT'
                                 self.proxy = True
                                 self.connection.connect(('127.0.0.1', proxy_port))
                                 self.connection.send(forward_port.encode('ascii'))
@@ -164,27 +176,64 @@ class Client(User):
                     if self.video_request_state == VideoRequestState.not_started:
                         # send request to get list of videos
                         self.connection.send('list of videos'.encode('ascii'))
+
+                        self.video_stream_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        self.audio_stream_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+                        self.video_stream_socket.connect(('127.0.0.1', STREAM_SERVER_PORT))
+                        self.audio_stream_socket.connect(('127.0.0.1', STREAM_SERVER_PORT))
+
                         self.video_request_state = VideoRequestState.idle
-                        wait_thread = threading.Thread(target=self.wait_for_video_list, args=())
-                        wait_thread.start()
+                        self.wait_for_video_list()
                     elif self.video_request_state == VideoRequestState.pending_for_list:
                         print("Please enter video id:")
                         video_id = input()
                         is_correct = self.check_video_id(video_id)
                         if is_correct:
-                            self.connection.send(video_id.encode('ascii'))
-                            self.video_request_state = VideoRequestState.idle
-                            self.receive_video()
-                            # wait_thread = threading.Thread(target=self.receive_video, args=())
-                            # wait_thread.start()
+                            if video_id == '0':
+                                self.state = State.main_menu
+                                self.connection.close()
+                            else:
+                                self.video_request_state = VideoRequestState.idle
+
+                                video_stream_message = "{}{}{}".format(VIDEO_SOCKET, SEPARATOR, video_id)
+                                audio_stream_message = "{}{}{}".format(AUDIO_SOCKET, SEPARATOR, video_id)
+
+                                self.video_stream_socket.send(
+                                    video_stream_message.encode('ascii'))
+                                self.audio_stream_socket.send(
+                                    audio_stream_message.encode('ascii'))
+                                time.sleep(2)
+
+                                recv_aud_thread = threading.Thread(target=self.receive_audio, args=())
+                                recv_aud_thread.start()
+                                self.receive_video()
+
+
                         else:
                             print("Invalid Video Id")
 
-            except:
+            except Exception:
+                traceback.print_exc()
                 if self.connection is not None:
                     self.connection.close()
-                print('An exception occurred.')
-                break
+
+    def receive_audio(self):
+
+        q = queue.Queue(maxsize=2000)
+
+        BUFF_SIZE = 65536
+        p = pyaudio.PyAudio()
+        CHUNK = 4 * 1024
+        stream = p.open(format=p.get_format_from_width(2),
+                        channels=2,
+                        rate=44100,
+                        output=True,
+                        frames_per_buffer=CHUNK)
+
+        while True:
+            frame= self.audio_stream_socket.recv(4 * 1024)
+            stream.write(frame)
 
     def chat_login_signup_menu(self):
         print('1. Sign Up\n2. Login\n3. Exit')
@@ -229,18 +278,16 @@ class Client(User):
                 print(msg[0])
 
     def receive_video(self):
+        print("receiving video...")
         # Todo: receive video
 
         data = b""
         payload_size = struct.calcsize("Q")
 
-        # wait_thread = threading.Thread(target=self.wait_key, args=())
-        # wait_thread.start()
-
         print("For quit streaming, you can click 'q' key...")
         while True:
             while len(data) < payload_size:
-                packet = self.connection.recv(4 * 1024)  # 4K
+                packet = self.video_stream_socket.recv(4 * 1024)  # 4K
                 if not packet: break
                 data += packet
             packed_msg_size = data[:payload_size]
@@ -248,7 +295,7 @@ class Client(User):
             msg_size = struct.unpack("Q", packed_msg_size)[0]
 
             while len(data) < msg_size:
-                data += self.connection.recv(4 * 1024)
+                data += self.video_stream_socket.recv(4 * 1024)
             frame_data = data[:msg_size]
             data = data[msg_size:]
             frame = pickle.loads(frame_data)
@@ -261,20 +308,25 @@ class Client(User):
         print("stream ended")
         cv2.destroyAllWindows()
         cv2.waitKey(1)
-        self.state = State.main_menu
+        self.video_stream_socket.close()
+        self.audio_stream_socket.close()
+        time.sleep(1)
+        self.video_request_state = VideoRequestState.not_started
 
     def check_video_id(self, vid_id):
         if not number_pattern.match(vid_id):
             return False
-        if int(vid_id) < 1 or int(vid_id) > self.videos_num:
+        if int(vid_id) < 0 or int(vid_id) > self.videos_num:
             return False
         return True
 
     def wait_for_video_list(self):
         recv_message = self.connection.recv(1024).decode('ascii').strip().split(SEPARATOR)
+        print("received message : ", recv_message)
         self.videos_num = int(recv_message[0])
 
         print("-------- List Of Videos ({}) --------".format(self.videos_num))
+        print("0. Exit Stream Server")
         print(recv_message[1])
 
         self.video_request_state = VideoRequestState.pending_for_list
