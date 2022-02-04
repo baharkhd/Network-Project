@@ -11,12 +11,11 @@ import struct
 import imutils
 import time
 import moviepy.editor as mp
+from commons import SEPARATOR
 # import pyaudio
 import wave
 
 from commons import STREAM_SERVER_PORT
-
-SEPARATOR = "========="
 
 VIDEO_SOCKET = 'VIDEO_SOCKET'
 AUDIO_SOCKET = "AUDIO_SOCKET"

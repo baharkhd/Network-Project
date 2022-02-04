@@ -8,10 +8,11 @@ import time
 from enum import Enum
 # import pyaudio
 from enum import Enum
+import traceback
 
 import cv2
 import cv2
-from StreamServer import SEPARATOR
+from commons import SEPARATOR
 from User import User
 from commons import STREAM_SERVER_PORT, CHAT_SERVER_PORT
 
@@ -71,6 +72,8 @@ class Client(User):
         password = input('Please enter a password, this will be used for further changes'
                          ' in the firewall of the system.\n')
         self.admin_password = password
+
+        count = 0
         while True:
             try:
                 if self.state == State.main_menu:
@@ -125,10 +128,10 @@ class Client(User):
                     inp_ = inp.split()
                     try:
                         if inp == 'Chat':
-                            if not self.check_firewall(5050):
+                            if not self.check_firewall(CHAT_SERVER_PORT):
                                 print('Packet dropped due to firewall issues.')
                             else:
-                                self.connection.connect(('127.0.0.1', 5050))
+                                self.connection.connect(('127.0.0.1', CHAT_SERVER_PORT))
                                 self.state = State.chat
                         elif inp == 'Stream':
                             if not self.check_firewall(STREAM_SERVER_PORT):
@@ -150,7 +153,9 @@ class Client(User):
                         else:
                             print('Invalid message')
                     except:
+                        # traceback.print_exc()
                         print('Invalid message')
+                        traceback.print_exc()
                 elif self.state == State.chat:
                     if self.chat_state == ChatStates.login_signup_menu:
                         self.chat_login_signup_menu()
@@ -167,6 +172,9 @@ class Client(User):
                             print('The command must be an integer from 1 to 3.')
                     elif self.chat_state == ChatStates.mailbox:
                         print('Enter \'0\' to go back to main menu.')
+                        count += 1
+                        if count > 20:
+                            break
                         usernames = self.get_usernames()
                         command = input().strip()
                         self.connection.send(command.encode('ascii'))
@@ -238,9 +246,11 @@ class Client(User):
                             print("Invalid Video Id")
 
             except Exception:
-                # traceback.print_exc()
+                traceback.print_exc()
+                # print("exception????")
                 if self.connection is not None:
                     self.connection.close()
+                break
 
     def receive_audio(self):
 
@@ -267,6 +277,7 @@ class Client(User):
             print('Please enter your username.')
             username = input()
             if username == '0':
+                # Todo: change this message to just invalid
                 print('This username is already existed or invalid. Please enter another one.')
             else:
                 self.connection.send(username.encode('ascii'))
@@ -285,6 +296,7 @@ class Client(User):
         print('Please enter your password.')
         password = input()
         self.connection.send(username.encode('ascii'))
+        time.sleep(0.2)
         self.connection.send(password.encode('ascii'))
         log_in_check = self.connection.recv(4096).decode('ascii')
         print(log_in_check)
@@ -293,9 +305,11 @@ class Client(User):
 
     def get_usernames(self):
         usernames = []
-        user_count = int(self.connection.recv(4096).decode('ascii'))
-        for i in range(user_count):
-            msg = self.connection.recv(4096).decode('ascii')
+        recv_message = self.connection.recv(4096).decode('ascii')
+
+        users_messages = recv_message.split(SEPARATOR)
+
+        for msg in users_messages:
             msg = msg.split()
             usernames.append(msg[0])
             if int(msg[1]):

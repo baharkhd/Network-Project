@@ -7,6 +7,7 @@ from datetime import datetime
 from Message import Message
 from User import User
 from commons import CHAT_SERVER_PORT
+from commons import SEPARATOR
 
 
 class ChatServer:
@@ -56,15 +57,20 @@ class ChatServer:
                 else:
                     client.send('Please enter your password.'.encode('ascii'))
                     password = client.recv(4096).decode('ascii')
+
                     user = User()
                     user.username = username
                     user.password = password
+                    user.messages = {}
+                    user.unreadMsgNum = {}
+
                     self.users.append(user)
                     break
 
     def login(self, client):
         username = client.recv(4096).decode('ascii')
         password = client.recv(4096).decode('ascii')
+
         for user in self.users:
             if user.username == username and user.password == password:
                 client.send('Logged in successfully.'.encode('ascii'))
@@ -90,27 +96,34 @@ class ChatServer:
         return state, user
 
     def handle_mailbox(self, client, state, user: User):
-        last_message = []
+        last_messages = []
         username = None
         for u in self.users:
-            if u != user:
-                if u not in user.messages:
-                    m = Message(msg='', date=datetime(2000, 1, 1), sender=user, receiver=u)
-                    user.messages[u] = [m]
-                    u.messages[user] = [m]
-                    user.unreadMsgNum[u] = 0
-                    u.unreadMsgNum[user] = 0
-                last_message.append(
-                    {'username': u.username, 'date': u.messages[user][-1].date, 'unread': user.unreadMsgNum[u], 'msg': u.messages[user][-1].msg})
+            if u.username != user.username:
+                if not u.username in user.messages.keys():
+                    u.messages[user.username] = [Message(msg='', date=datetime(2000, 1, 1), sender=user, receiver=u)]
 
-        last_message = sorted(last_message, key=lambda i: i['date'], reverse=True)
-        user_count = len(last_message)
-        client.send(str(user_count).encode('ascii'))
-        print(last_message)
-        for u in last_message:
+                    user.messages[u.username] = [Message(msg='', date=datetime(2000, 1, 1), sender=user, receiver=u)]
+                    user.unreadMsgNum[u.username] = 0
+                    u.unreadMsgNum[user.username] = 0
+
+                last_messages.append(
+                    {'username': u.username, 'date': u.messages[user.username][-1].date,
+                     'unread': user.unreadMsgNum[u.username],
+                     'msg': u.messages[user.username][-1].msg})
+
+        last_messages = sorted(last_messages, key=lambda i: i['date'], reverse=True)
+
+        print(last_messages)
+        users_messages = []
+        for u in last_messages:
             msg = u['username'] + ' ' + str(u['unread'])
-            client.send(msg.encode('ascii'))
-            time.sleep(0.1)
+            users_messages.append(msg)
+            # client.send(msg.encode('ascii'))
+            # time.sleep(0.1)
+
+        mailbox_message = SEPARATOR.join(users_messages)
+        client.send(mailbox_message.encode('ascii'))
 
         message = client.recv(4096).decode('ascii').strip()
         if message == '0':
@@ -118,9 +131,9 @@ class ChatServer:
         else:
             for u in self.users:
                 if u.username == message:
-                    username = u
+                    username = u.username
                     state = 2
-                    user.unreadMsgNum[u] = 0
+                    user.unreadMsgNum[u.username] = 0
                     break
         return state, username
 
@@ -129,9 +142,6 @@ class ChatServer:
         # message_receiving_thread = threading.Thread(target=self.receive_msg, args=(client, state, user1, user2))
         # message_receiving_thread.start()
         while True:
-            print(user1.username)
-            print(user2.username)
-            print('gooooooooooooooooooooh')
             message = client.recv(4096).decode('ascii').strip()
             time.sleep(0.1)
             if message[0] == '/':
@@ -143,26 +153,27 @@ class ChatServer:
                     break
             else:
                 m = Message(message, datetime.now(), user1, user2)
-                user1.messages[user2].append(m)
-                user2.messages[user1].append(m)
+                user1.messages[user2.username].append(m)
+                user2.messages[user1.username].append(m)
                 # print(f'message sent from {user1.username} to {user2.username}')
                 # for u in self.users:
                 #     print(f'{u.username}')
-                #     for i in u.messages[user1]:
+                #     for i in u.messages[user1.username]:
                 #         print(i.msg)
-                user2.unreadMsgNum[user1] += 1
-                user1.unreadMsgNum[user2] = 0
+                user2.unreadMsgNum[user1.username] += 1
+                user1.unreadMsgNum[user2.username] = 0
+
         return state
 
     def load_x(self, k, client, user1: User, user2: User):
-        messages_count = len(user1.messages[user2]) - 1  # one msg is additional (initial msg)
+        messages_count = len(user1.messages[user2.username]) - 1  # one msg is additional (initial msg)
         if messages_count < k:
             k = messages_count
         client.send(str(k).encode('ascii'))
         time.sleep(0.1)
         if k == 0:
             return
-        last_x_messages = user1.messages[user2][-k:]
+        last_x_messages = user1.messages[user2.username][-k:]
         for m in last_x_messages:
             msg = m.sender.username + ' ' + m.msg
             client.send(msg.encode('ascii'))
@@ -172,12 +183,12 @@ class ChatServer:
         while True:
             if state != 2:
                 break
-            if user1.unreadMsgNum[user2]:
-                client.send(str(user1.unreadMsgNum[user2]).encode('ascii'))
+            if user1.unreadMsgNum[user2.username]:
+                client.send(str(user1.unreadMsgNum[user2.username]).encode('ascii'))
                 time.sleep(0.1)
-                new_messages = user1.messages[user2][-user1.unreadMsgNum[user2]:]
+                new_messages = user1.messages[user2.username][-user1.unreadMsgNum[user2.username]:]
                 for m in new_messages:
-                    user1.unreadMsgNum[user2] -= 1
+                    user1.unreadMsgNum[user2.username] -= 1
                     msg = m.sender.username + ' ' + m.msg
                     client.send(msg.encode('ascii'))
                     time.sleep(0.1)
