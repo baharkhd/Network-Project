@@ -60,7 +60,7 @@ class StreamServer:
             self.videos.append(video)
 
             # Todo: uncomment this line at the end
-            self.init_audio(video.name)
+            # self.init_audio(video.name)
 
     def init_audio(self, filename):
         videos_path = os.path.join(os.getcwd(), 'videos')
