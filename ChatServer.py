@@ -1,12 +1,12 @@
 import re
 import socket
 import threading
-from commons import CHAT_SERVER_PORT
 import time
 from datetime import datetime
 
 from Message import Message
 from User import User
+from commons import CHAT_SERVER_PORT
 
 
 class ChatServer:
@@ -126,17 +126,21 @@ class ChatServer:
 
     def handle_chat(self, client, state, user1: User, user2: User):
         self.load_x(5, client, user1, user2)
-        message = client.recv(4096).decode('ascii').strip()
-        if message[0] == '\\':
-            if re.search('^load_\d+$', message[1:0]):
-                message_arr = message.split('_')
-                self.load_x(int(message_arr[1]), client, user1, user2)
-            elif message[1:] == 'exit':
-                state = 1
+        while True:
+            message = client.recv(4096).decode('ascii').strip()
+            time.sleep(0.1)
+            if message[0] == '/':
+                if re.search('^load_\d+$', message[1:]):
+                    message_arr = message.split('_')
+                    self.load_x(int(message_arr[1]), client, user1, user2)
+                elif message[1:] == 'exit':
+                    state = 1
+                    break
             else:
                 m = Message(message, datetime.now(), user1, user2)
                 user1.messages[user2].append(m)
                 user2.messages[user1].append(m)
+                user2.unreadMsgNum[user1] += 1
         return state
 
     def load_x(self, k, client, user1: User, user2: User):
@@ -144,12 +148,13 @@ class ChatServer:
         if messages_count < k:
             k = messages_count
         client.send(str(k).encode('ascii'))
+        if k == 0:
+            return
         last_x_messages = user1.messages[user2][-k:-1] + [user1.messages[user2][-1]]
         for m in last_x_messages:
-            msg = m.sender + ' ' + m.msg
+            msg = m.sender.username + ' ' + m.msg
             client.send(msg.encode('ascii'))
             time.sleep(0.1)
-
 
 
 if __name__ == "__main__":

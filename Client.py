@@ -1,4 +1,5 @@
 import pickle
+import queue
 import re
 import socket
 import struct
@@ -7,9 +8,11 @@ from enum import Enum
 
 import cv2
 import time
-import queue
-import pyaudio
+# import pyaudio
 import traceback
+from enum import Enum
+
+import cv2
 from commons import STREAM_SERVER_PORT, CHAT_SERVER_PORT
 
 from StreamServer import SEPARATOR
@@ -167,12 +170,24 @@ class Client(User):
                             print('The command must be an integer from 1 to 3.')
                     elif self.chat_state == ChatStates.mailbox:
                         print('Enter \'0\' to go back to main menu.')
-                        self.get_usernames()
-                        command = input()
+                        usernames = self.get_usernames()
+                        command = input().strip()
                         self.connection.send(command.encode('ascii'))
                         if command == '0':
                             self.chat_state = ChatStates.login_signup_menu
-
+                        elif command in usernames:
+                            self.chat_state = ChatStates.chat
+                    elif self.chat_state == ChatStates.chat:
+                        self.load_x()
+                        while True:
+                            command = input()
+                            self.connection.send(command.encode('ascii'))
+                            if command[0] == '/':
+                                if re.search('^load_\d+$', command[1:]):
+                                    self.load_x()
+                                elif command[1:] == 'exit':
+                                    self.chat_state = ChatStates.mailbox
+                                    break
 
 
                 elif self.state == State.stream:
@@ -278,14 +293,28 @@ class Client(User):
             self.chat_state = ChatStates.mailbox
 
     def get_usernames(self):
+        usernames = []
         user_count = int(self.connection.recv(4096).decode('ascii'))
         for i in range(user_count):
             msg = self.connection.recv(4096).decode('ascii')
             msg = msg.split()
+            usernames.append(msg[0])
             if int(msg[1]):
                 print(f'{msg[0]} ({int(msg[1])})')
             else:
                 print(msg[0])
+        return usernames
+
+    def load_x(self):
+        message_count = int(self.connection.recv(4096).decode('ascii'))
+        for i in range(message_count):
+            msg = self.connection.recv(4096).decode('ascii')
+            first_space = msg.find(' ')
+            sender, m = msg[:first_space], msg[first_space + 1:]
+            if sender != self.username:
+                print(f'({sender}) {m}')
+            else:
+                print(m)
 
     def receive_video(self):
         print("receiving video...")
