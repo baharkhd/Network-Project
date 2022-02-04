@@ -11,7 +11,7 @@ import struct
 import imutils
 import time
 import moviepy.editor as mp
-import pyaudio
+# import pyaudio
 import wave
 
 from commons import STREAM_SERVER_PORT
@@ -135,12 +135,12 @@ class StreamServer:
 
         CHUNK = 4 * 1024
         wf = wave.open(audio_path)
-        p = pyaudio.PyAudio()
-        stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
-                        channels=wf.getnchannels(),
-                        rate=wf.getframerate(),
-                        input=True,
-                        frames_per_buffer=CHUNK)
+        # p = pyaudio.PyAudio()
+        # stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
+        #                 channels=wf.getnchannels(),
+        #                 rate=wf.getframerate(),
+        #                 input=True,
+        #                 frames_per_buffer=CHUNK)
 
         data = None
         sample_rate = wf.getframerate()

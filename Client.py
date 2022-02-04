@@ -6,7 +6,6 @@ import struct
 import threading
 import time
 # import pyaudio
-import traceback
 from enum import Enum
 
 import cv2
@@ -174,6 +173,8 @@ class Client(User):
                             self.chat_state = ChatStates.chat
                     elif self.chat_state == ChatStates.chat:
                         self.load_x()
+                        # receive_new_message = threading.Thread(target=self.receive_msg, args=())
+                        # receive_new_message.start()
                         while True:
                             command = input()
                             self.connection.send(command.encode('ascii'))
@@ -293,6 +294,12 @@ class Client(User):
             else:
                 print(msg[0])
         return usernames
+
+    def receive_msg(self):
+        while True:
+            self.load_x()
+            if self.chat_state != ChatStates.chat:
+                break
 
     def load_x(self):
         message_count = int(self.connection.recv(4096).decode('ascii'))

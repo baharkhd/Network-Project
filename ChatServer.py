@@ -60,7 +60,6 @@ class ChatServer:
                     user.username = username
                     user.password = password
                     self.users.append(user)
-                    print(f'{username} registered')
                     break
 
     def login(self, client):
@@ -77,7 +76,6 @@ class ChatServer:
 
     def handle_main_menu(self, client, state):
         message = client.recv(4096).decode('ascii').strip()
-        print("* message received from client: ", message)
         user = None
         if message == '1':
             self.sign_up(client)
@@ -96,7 +94,6 @@ class ChatServer:
         username = None
         for u in self.users:
             if u != user:
-                print(f'Check for error: {u.username}')
                 if u not in user.messages:
                     m = Message(msg='', date=datetime(2000, 1, 1), sender=user, receiver=u)
                     user.messages[u] = [m]
@@ -104,7 +101,8 @@ class ChatServer:
                     user.unreadMsgNum[u] = 0
                     u.unreadMsgNum[user] = 0
                 last_message.append(
-                    {'username': u.username, 'date': u.messages[user][-1].date, 'unread': user.unreadMsgNum[u]})
+                    {'username': u.username, 'date': u.messages[user][-1].date, 'unread': user.unreadMsgNum[u], 'msg': u.messages[user][-1].msg})
+
         last_message = sorted(last_message, key=lambda i: i['date'], reverse=True)
         user_count = len(last_message)
         client.send(str(user_count).encode('ascii'))
@@ -122,11 +120,18 @@ class ChatServer:
                 if u.username == message:
                     username = u
                     state = 2
+                    user.unreadMsgNum[u] = 0
+                    break
         return state, username
 
     def handle_chat(self, client, state, user1: User, user2: User):
         self.load_x(5, client, user1, user2)
+        # message_receiving_thread = threading.Thread(target=self.receive_msg, args=(client, state, user1, user2))
+        # message_receiving_thread.start()
         while True:
+            print(user1.username)
+            print(user2.username)
+            print('gooooooooooooooooooooh')
             message = client.recv(4096).decode('ascii').strip()
             time.sleep(0.1)
             if message[0] == '/':
@@ -140,7 +145,13 @@ class ChatServer:
                 m = Message(message, datetime.now(), user1, user2)
                 user1.messages[user2].append(m)
                 user2.messages[user1].append(m)
+                # print(f'message sent from {user1.username} to {user2.username}')
+                # for u in self.users:
+                #     print(f'{u.username}')
+                #     for i in u.messages[user1]:
+                #         print(i.msg)
                 user2.unreadMsgNum[user1] += 1
+                user1.unreadMsgNum[user2] = 0
         return state
 
     def load_x(self, k, client, user1: User, user2: User):
@@ -148,13 +159,28 @@ class ChatServer:
         if messages_count < k:
             k = messages_count
         client.send(str(k).encode('ascii'))
+        time.sleep(0.1)
         if k == 0:
             return
-        last_x_messages = user1.messages[user2][-k:-1] + [user1.messages[user2][-1]]
+        last_x_messages = user1.messages[user2][-k:]
         for m in last_x_messages:
             msg = m.sender.username + ' ' + m.msg
             client.send(msg.encode('ascii'))
             time.sleep(0.1)
+
+    def receive_msg(self, client, state, user1: User, user2: User):
+        while True:
+            if state != 2:
+                break
+            if user1.unreadMsgNum[user2]:
+                client.send(str(user1.unreadMsgNum[user2]).encode('ascii'))
+                time.sleep(0.1)
+                new_messages = user1.messages[user2][-user1.unreadMsgNum[user2]:]
+                for m in new_messages:
+                    user1.unreadMsgNum[user2] -= 1
+                    msg = m.sender.username + ' ' + m.msg
+                    client.send(msg.encode('ascii'))
+                    time.sleep(0.1)
 
 
 if __name__ == "__main__":
