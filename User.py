@@ -1,7 +1,9 @@
 class User:
-    username = ''
-    password = ''
-    admin_password = ''
-    unreadMsgNum = dict()
-    messages = dict()
 
+    def __init(self):
+        self.username = ""
+        self.password = ""
+        self.admin_password = ""
+
+        self.messages = {}
+        self.unreadMsgNum = {}

@@ -59,6 +59,8 @@ class ChatServer:
                     user = User()
                     user.username = username
                     user.password = password
+                    user.messages = {}
+                    user.unreadMsgNum = {}
                     self.users.append(user)
                     break
 
