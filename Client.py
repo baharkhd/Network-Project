@@ -1,18 +1,19 @@
+import pickle
+import re
 import socket
+import struct
 import threading
 from enum import Enum
-from User import User
-import re
-from StreamServer import SEPARATOR
-import pickle
-import struct
-import imutils
+
 import cv2
 import time
 import queue
 import pyaudio
 import traceback
 from commons import STREAM_SERVER_PORT
+
+from StreamServer import SEPARATOR
+from User import User
 
 number_pattern = re.compile("^[0-9]+$")
 
@@ -42,6 +43,12 @@ class VideoRequestState(Enum):
     after_ending_stream = 5
 
 
+class ChatStates(Enum):
+    login_signup_menu = 0
+    mailbox = 1
+    chat = 2
+
+
 class Client(User):
     ports = []
     firewall_type = FirewallType.blacklist
@@ -49,6 +56,7 @@ class Client(User):
     state = State.main_menu
 
     video_request_state = VideoRequestState.not_started
+    chat_state = ChatStates.login_signup_menu
     videos_num = 0
 
     stop_video = False
@@ -62,7 +70,7 @@ class Client(User):
     def start_client(self):
         password = input('Please enter a password, this will be used for further changes'
                          ' in the firewall of the system.\n')
-        self.password = password
+        self.admin_password = password
         while True:
             try:
                 if self.state == State.main_menu:
@@ -84,7 +92,7 @@ class Client(User):
                 elif self.state == State.admin:
                     print('Please enter your password:')
                     inp = input()
-                    while inp != self.password:
+                    while inp != self.admin_password:
                         print('Incorrect password. Try again ot type /exit to exit to main menu.')
                         inp = input()
                         if inp == '/exit':
@@ -141,8 +149,29 @@ class Client(User):
                     except:
                         print('Invalid message')
                 elif self.state == State.chat:
-                    print("here in chat state")
-                    pass
+                    if self.chat_state == ChatStates.login_signup_menu:
+                        self.chat_login_signup_menu()
+                        command = input()
+                        self.connection.send(command.encode('ascii'))
+                        if command == '1':
+                            self.signup()
+                        elif command == '2':
+                            self.login()
+                        elif command == '3':
+                            pass
+                            # TODO exit
+                        else:
+                            print('The command must be an integer from 1 to 3.')
+                    elif self.chat_state == ChatStates.mailbox:
+                        print('Enter \'0\' to go back to main menu.')
+                        self.get_usernames()
+                        command = input()
+                        self.connection.send(command.encode('ascii'))
+                        if command == '0':
+                            self.chat_state = ChatStates.login_signup_menu
+
+
+
                 elif self.state == State.stream:
                     if self.video_request_state == VideoRequestState.not_started:
                         # send request to get list of videos
@@ -205,6 +234,48 @@ class Client(User):
         while True:
             frame= self.audio_stream_socket.recv(4 * 1024)
             stream.write(frame)
+
+    def chat_login_signup_menu(self):
+        print('1. Sign Up\n2. Login\n3. Exit')
+
+    def signup(self):
+        while True:
+            print('Please enter your username.')
+            username = input()
+            if username == '0':
+                print('This username is already existed or invalid. Please enter another one.')
+            else:
+                self.connection.send(username.encode('ascii'))
+                username_check = self.connection.recv(4096).decode('ascii')
+                print(username_check)
+                if username_check == 'Please enter your password.':
+                    self.username = username
+                    break
+        password = input()
+        self.password = password
+        self.connection.send(password.encode('ascii'))
+
+    def login(self):
+        print('Please enter your username.')
+        username = input()
+        print('Please enter your password.')
+        password = input()
+        self.connection.send(username.encode('ascii'))
+        self.connection.send(password.encode('ascii'))
+        log_in_check = self.connection.recv(4096).decode('ascii')
+        print(log_in_check)
+        if log_in_check != 'Incorrect username or password.':
+            self.chat_state = ChatStates.mailbox
+
+    def get_usernames(self):
+        user_count = int(self.connection.recv(4096).decode('ascii'))
+        for i in range(user_count):
+            msg = self.connection.recv(4096).decode('ascii')
+            msg = msg.split()
+            if int(msg[1]):
+                print(f'{msg[0]} ({int(msg[1])})')
+            else:
+                print(msg[0])
 
     def receive_video(self):
         print("receiving video...")
