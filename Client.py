@@ -4,15 +4,18 @@ import re
 import socket
 import struct
 import threading
+from enum import Enum
+
+import cv2
 import time
 # import pyaudio
 from enum import Enum
 
 import cv2
+from commons import STREAM_SERVER_PORT, CHAT_SERVER_PORT
 
 from StreamServer import SEPARATOR
 from User import User
-from commons import STREAM_SERVER_PORT
 
 number_pattern = re.compile("^[0-9]+$")
 
@@ -51,7 +54,7 @@ class ChatStates(Enum):
 class Client(User):
     ports = []
     firewall_type = FirewallType.blacklist
-    proxy = False
+    proxy = None
     state = State.main_menu
 
     video_request_state = VideoRequestState.not_started
@@ -117,6 +120,7 @@ class Client(User):
                             break
                         self.firewall_change(inp)
                 elif self.state == State.user:
+                    self.proxy = None
                     print('1. Chat\n2. Stream')
                     self.connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     inp = input()
@@ -139,10 +143,11 @@ class Client(User):
                             if not self.check_firewall(proxy_port):
                                 print('Packet dropped due to firewall issues.')
                             else:
-                                forward_port = '5050' if inp_[0] == 'Chat' else 'STREAM_SERVER_PORT'
-                                self.proxy = True
+                                forward_port = str(CHAT_SERVER_PORT) if inp_[0] == 'Chat' else str(STREAM_SERVER_PORT)
+                                self.proxy = proxy_port
                                 self.connection.connect(('127.0.0.1', proxy_port))
                                 self.connection.send(forward_port.encode('ascii'))
+                                time.sleep(0.25)
                                 self.state = State.chat if inp_[0] == 'Chat' else State.stream
                         else:
                             print('Invalid message')
@@ -194,8 +199,14 @@ class Client(User):
                         self.video_stream_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                         self.audio_stream_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-                        self.video_stream_socket.connect(('127.0.0.1', STREAM_SERVER_PORT))
-                        self.audio_stream_socket.connect(('127.0.0.1', STREAM_SERVER_PORT))
+                        if self.proxy is not None:
+                            self.video_stream_socket.connect(('127.0.0.1', self.proxy))
+                            self.audio_stream_socket.connect(('127.0.0.1', self.proxy))
+                            self.video_stream_socket.send(str(STREAM_SERVER_PORT).encode('ascii'))
+                            self.audio_stream_socket.send(str(STREAM_SERVER_PORT).encode('ascii'))
+                        else:
+                            self.video_stream_socket.connect(('127.0.0.1', STREAM_SERVER_PORT))
+                            self.audio_stream_socket.connect(('127.0.0.1', STREAM_SERVER_PORT))
 
                         self.video_request_state = VideoRequestState.idle
                         self.wait_for_video_list()

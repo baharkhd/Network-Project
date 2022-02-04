@@ -20,7 +20,7 @@ class ProxyServer:
             client, address = self.proxy_server.accept()
             forwarding_port = int(client.recv(1024).decode('ascii'))
             server = self.initiate_connection(forwarding_port)
-            self.forwarding_table[address] = (forwarding_port, client, server, True)
+            self.forwarding_table[address] = (forwarding_port, client, server)
 
             client_thread = threading.Thread(target=self.client_to_server, args=(server, client, address,))
             client_thread.start()
@@ -33,25 +33,22 @@ class ProxyServer:
         return socket_
 
     def client_to_server(self, server, client, address):
-        while self.forwarding_table[address][3]:
+        while True:
             try:
                 message = client.recv(1024)
-                if message.decode('ascii') == '/ProxyExit':
-                    self.forwarding_table[address][3] = False
-                else:
-                    server.send(message)
+                server.send(message)
             except:
-                self.forwarding_table[address][3] = False
-        client.close()
+                self.forwarding_table[address][1].close()
+                self.forwarding_table[address][2].close()
 
     def server_to_client(self, server, client, address):
-        while self.forwarding_table[address][3]:
+        while True:
             try:
                 message = server.recv(1024)
                 client.send(message)
             except:
-                self.forwarding_table[address][3] = False
-        server.close()
+                self.forwarding_table[address][2].close()
+                self.forwarding_table[address][1].close()
 
 
 if __name__ == '__main__':
