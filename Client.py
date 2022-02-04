@@ -119,6 +119,7 @@ class Client(User):
                         self.firewall_change(inp)
                 elif self.state == State.user:
                     print('1. Chat\n2. Stream')
+                    self.connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     inp = input()
                     inp_ = inp.split()
                     try:
@@ -191,6 +192,7 @@ class Client(User):
                         is_correct = self.check_video_id(video_id)
                         if is_correct:
                             if video_id == '0':
+                                self.video_request_state = VideoRequestState.not_started
                                 self.state = State.main_menu
                                 self.connection.close()
                             else:
@@ -214,7 +216,7 @@ class Client(User):
                             print("Invalid Video Id")
 
             except Exception:
-                traceback.print_exc()
+                # traceback.print_exc()
                 if self.connection is not None:
                     self.connection.close()
 
@@ -232,7 +234,7 @@ class Client(User):
                         frames_per_buffer=CHUNK)
 
         while True:
-            frame= self.audio_stream_socket.recv(4 * 1024)
+            frame = self.audio_stream_socket.recv(4 * 1024)
             stream.write(frame)
 
     def chat_login_signup_menu(self):
@@ -322,7 +324,6 @@ class Client(User):
 
     def wait_for_video_list(self):
         recv_message = self.connection.recv(1024).decode('ascii').strip().split(SEPARATOR)
-        print("received message : ", recv_message)
         self.videos_num = int(recv_message[0])
 
         print("-------- List Of Videos ({}) --------".format(self.videos_num))
