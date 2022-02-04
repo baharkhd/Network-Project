@@ -4,18 +4,16 @@ import re
 import socket
 import struct
 import threading
-from enum import Enum
-
-import cv2
 import time
+from enum import Enum
 # import pyaudio
 from enum import Enum
 
 import cv2
-from commons import STREAM_SERVER_PORT, CHAT_SERVER_PORT
-
+import cv2
 from StreamServer import SEPARATOR
 from User import User
+from commons import STREAM_SERVER_PORT, CHAT_SERVER_PORT
 
 number_pattern = re.compile("^[0-9]+$")
 
