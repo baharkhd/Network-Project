@@ -1,3 +1,4 @@
+import re
 import socket
 import threading
 from commons import CHAT_SERVER_PORT
@@ -39,7 +40,9 @@ class ChatServer:
             if state == 0:
                 state, user = self.handle_main_menu(client, state)
             elif state == 1:
-                state = self.handle_mailbox(client, state, user)
+                state, username = self.handle_mailbox(client, state, user)
+            else:
+                state = self.handle_chat(client, state, user, username)
 
     def sign_up(self, client):
         while True:
@@ -90,6 +93,7 @@ class ChatServer:
 
     def handle_mailbox(self, client, state, user: User):
         last_message = []
+        username = None
         for u in self.users:
             if u != user:
                 print(f'Check for error: {u.username}')
@@ -116,10 +120,36 @@ class ChatServer:
         else:
             for u in self.users:
                 if u.username == message:
-                    # TODO state 2
-                    break
+                    username = u
+                    state = 2
+        return state, username
 
+    def handle_chat(self, client, state, user1: User, user2: User):
+        self.load_x(5, client, user1, user2)
+        message = client.recv(4096).decode('ascii').strip()
+        if message[0] == '\\':
+            if re.search('^load_\d+$', message[1:0]):
+                message_arr = message.split('_')
+                self.load_x(int(message_arr[1]), client, user1, user2)
+            elif message[1:] == 'exit':
+                state = 1
+            else:
+                m = Message(message, datetime.now(), user1, user2)
+                user1.messages[user2].append(m)
+                user2.messages[user1].append(m)
         return state
+
+    def load_x(self, k, client, user1: User, user2: User):
+        messages_count = len(user1.messages[user2]) - 1  # one msg is additional (initial msg)
+        if messages_count < k:
+            k = messages_count
+        client.send(str(k).encode('ascii'))
+        last_x_messages = user1.messages[user2][-k:-1] + [user1.messages[user2][-1]]
+        for m in last_x_messages:
+            msg = m.sender + ' ' + m.msg
+            client.send(msg.encode('ascii'))
+            time.sleep(0.1)
+
 
 
 if __name__ == "__main__":
