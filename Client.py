@@ -5,12 +5,10 @@ import socket
 import struct
 import threading
 import time
-from enum import Enum
 import pyaudio
 from enum import Enum
 import traceback
 
-import cv2
 import cv2
 from commons import SEPARATOR
 from User import User
@@ -177,24 +175,31 @@ class Client(User):
                             break
                         usernames = self.get_usernames()
                         command = input().strip()
-                        self.connection.send(command.encode('ascii'))
+
                         if command == '0':
                             self.chat_state = ChatStates.login_signup_menu
+                            self.connection.send('0'.encode('ascii'))
                         elif command in usernames:
                             self.chat_state = ChatStates.chat
+                            self.connection.send(command.encode('ascii'))
+                        else:
+                            self.connection.send('____'.encode('ascii'))
+                            print('Invalid ID!')
                     elif self.chat_state == ChatStates.chat:
                         self.load_x()
-                        # receive_new_message = threading.Thread(target=self.receive_msg, args=())
-                        # receive_new_message.start()
+                        receive_new_message = threading.Thread(target=self.receive_msg, args=())
+                        receive_new_message.start()
                         while True:
                             command = input()
-                            self.connection.send(command.encode('ascii'))
                             if command[0] == '/':
                                 if re.search('^load_\d+$', command[1:]):
                                     self.load_x()
                                 elif command[1:] == 'exit':
                                     self.chat_state = ChatStates.mailbox
+                                    self.connection.send(command.encode('ascii'))
                                     break
+                            self.connection.send(command.encode('ascii'))
+
 
 
                 elif self.state == State.stream:
@@ -306,6 +311,10 @@ class Client(User):
     def get_usernames(self):
         usernames = []
         recv_message = self.connection.recv(4096).decode('ascii')
+        if recv_message == 'Nothing to show!':
+            print(recv_message)
+            return []
+
 
         users_messages = recv_message.split(SEPARATOR)
 
@@ -320,12 +329,18 @@ class Client(User):
 
     def receive_msg(self):
         while True:
-            self.load_x()
             if self.chat_state != ChatStates.chat:
                 break
+            self.load_x()
+            time.sleep(0.2)
 
     def load_x(self):
-        message_count = int(self.connection.recv(4096).decode('ascii'))
+        mess = self.connection.recv(4096).decode('ascii')
+        try:
+            message_count = int(mess)
+        except:
+            self.connection.send('----'.encode('ascii'))
+            return
         for i in range(message_count):
             msg = self.connection.recv(4096).decode('ascii')
             first_space = msg.find(' ')

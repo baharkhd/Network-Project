@@ -121,16 +121,19 @@ class ChatServer:
             # client.send(msg.encode('ascii'))
             # time.sleep(0.1)
 
-        mailbox_message = SEPARATOR.join(users_messages)
+        if users_messages:
+            mailbox_message = SEPARATOR.join(users_messages)
+        else:
+            mailbox_message = 'Nothing to show!'
         client.send(mailbox_message.encode('ascii'))
 
         message = client.recv(4096).decode('ascii').strip()
+        print("recieved ", message)
         if message == '0':
-            state = 0
+            return 0, None
         else:
             for u in self.users:
                 if u.username == message:
-                    username = u.username
                     state = 2
                     user.unreadMsgNum[u.username] = 0
                     return state, u
@@ -138,8 +141,8 @@ class ChatServer:
 
     def handle_chat(self, client, state, user1: User, user2: User):
         self.load_x(5, client, user1, user2)
-        # message_receiving_thread = threading.Thread(target=self.receive_msg, args=(client, state, user1, user2))
-        # message_receiving_thread.start()
+        message_receiving_thread = threading.Thread(target=self.receive_msg, args=(client, state, user1, user2))
+        message_receiving_thread.start()
         while True:
             message = client.recv(4096).decode('ascii').strip()
             time.sleep(0.1)
