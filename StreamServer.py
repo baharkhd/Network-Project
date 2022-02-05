@@ -12,7 +12,6 @@ import imutils
 import time
 import moviepy.editor as mp
 from commons import SEPARATOR
-# import pyaudio
 import wave
 
 from commons import STREAM_SERVER_PORT
@@ -58,8 +57,7 @@ class StreamServer:
             video = Video(name=filename, id=i + 1)
             self.videos.append(video)
 
-            # Todo: uncomment this line at the end
-            # self.init_audio(video.name)
+            self.init_audio(video.name)
 
     def init_audio(self, filename):
         videos_path = os.path.join(os.getcwd(), 'videos')
@@ -75,9 +73,6 @@ class StreamServer:
 
 
     def handle(self, client, address):
-        # Don't forget to include stop-stream feature in your code.
-        # To send the video, You can create a new thread with function send_vid and look for incoming messages from client.
-
         while True:
             message = client.recv(4096).decode('ascii').strip()
             print("* message received from client {}: ".format(address), message, type(message))
@@ -117,10 +112,6 @@ class StreamServer:
                 self.audio_stream_thread = audio_stream_thread
             elif message == "stop streaming":
                 print("here? stop streaming")
-
-                # pyautogui.press('q')
-                # self.sending_video_lock.release()
-                # self.stream_thread.join()
             else:
                 client.send('Invalid Command'.encode('ascii'))
 
@@ -134,19 +125,12 @@ class StreamServer:
 
         CHUNK = 4 * 1024
         wf = wave.open(audio_path)
-        # p = pyaudio.PyAudio()
-        # stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
-        #                 channels=wf.getnchannels(),
-        #                 rate=wf.getframerate(),
-        #                 input=True,
-        #                 frames_per_buffer=CHUNK)
 
         data = None
         sample_rate = wf.getframerate()
 
         while True:
             data = wf.readframes(CHUNK)
-            # print("data:", data)
             client.sendall(data)
             time.sleep(0.8 * CHUNK / sample_rate)
 
@@ -156,11 +140,8 @@ class StreamServer:
         video = self.videos[vid_id - 1]
         video_path = os.path.join(os.getcwd(), 'videos', video.name)
         try:
-            # while self.sending_video_lock.locked():
             while True:
-                print("1.here")
                 if client:
-                    print("2.here")
                     vid = cv2.VideoCapture(video_path)
 
                     while vid.isOpened():
@@ -180,34 +161,3 @@ class StreamServer:
 
 if __name__ == "__main__":
     stream_server = StreamServer()
-
-    # videos_path = os.path.join(os.getcwd(), 'videos')
-    # audios_path = os.path.join(os.getcwd(), 'audios')
-    #
-    # for filename in os.listdir(videos_path):
-    #     print(filename)
-    #     video_path = os.path.join(videos_path, filename)
-    #
-    #     audio_filename = filename.replace(".mp4", ".wav")
-    #     audio_path = os.path.join(audios_path, audio_filename)
-    #
-    #     my_clip = mp.VideoFileClip(video_path)
-    #     my_clip.audio.write_audiofile(audio_path)
-    #
-    # cap = cv2.VideoCapture(os.path.join(videos_path, filename))
-    # # player = MediaPlayer(video_path)
-
-    # while cap.isOpened():
-    #     ret, frame = cap.read()
-    #     # audio_frame, val = player.get_frame()
-    #     if ret:
-    #         if cv2.waitKey(25) & 0xFF == ord('q'):
-    #             break
-    #         cv2.imshow('Frame',frame)
-    #         # if val != 'eof' and audio_frame is not None:
-    #         #     #audio
-    #         #     img, t = audio_frame
-    #     else:
-    #         break
-    # cap.release()
-    # cv2.destroyAllWindows()
