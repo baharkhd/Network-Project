@@ -133,8 +133,8 @@ class ChatServer:
                     username = u.username
                     state = 2
                     user.unreadMsgNum[u.username] = 0
-                    break
-        return state, username
+                    return state, u
+        return 1, None
 
     def handle_chat(self, client, state, user1: User, user2: User):
         self.load_x(5, client, user1, user2)

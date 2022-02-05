@@ -6,7 +6,7 @@ import struct
 import threading
 import time
 from enum import Enum
-# import pyaudio
+import pyaudio
 from enum import Enum
 import traceback
 
