@@ -88,8 +88,7 @@ class ChatServer:
         elif message == '2':
             state, user = self.login(client)
         elif message == '3':
-            pass
-            # TODO exit
+            client.close()
         else:
             msg = 'The command must be an integer from 1 to 3. lalalalalala'
             client.send(msg.encode('ascii'))

@@ -166,8 +166,8 @@ class Client(User):
                         elif command == '2':
                             self.login()
                         elif command == '3':
-                            pass
-                            # TODO exit
+                            self.connection.close()
+                            self.state = State.main_menu
                         else:
                             print('The command must be an integer from 1 to 3.')
                     elif self.chat_state == ChatStates.mailbox:
