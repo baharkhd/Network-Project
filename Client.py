@@ -86,6 +86,7 @@ class Client(User):
                         elif inp == 2:
                             self.state = State.admin
                         else:
+                            print("here? pressed Exit")
                             break
                     except:
                         print('The command must be an integer from 1 to 3.')
@@ -252,7 +253,6 @@ class Client(User):
 
             except Exception:
                 traceback.print_exc()
-                # print("exception????")
                 if self.connection is not None:
                     self.connection.close()
                 break

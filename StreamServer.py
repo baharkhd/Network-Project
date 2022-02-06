@@ -54,6 +54,8 @@ class StreamServer:
         videos_path = os.path.join(os.getcwd(), 'videos')
 
         for i, filename in enumerate(os.listdir(videos_path)):
+            if filename == ".DS_Store":
+                continue
             video = Video(name=filename, id=i + 1)
             self.videos.append(video)
 
@@ -61,6 +63,8 @@ class StreamServer:
             self.init_audio(video.name)
 
     def init_audio(self, filename):
+        if filename == ".DS_Store":
+            return
         videos_path = os.path.join(os.getcwd(), 'videos')
         audios_path = os.path.join(os.getcwd(), 'audios')
 
