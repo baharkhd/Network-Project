@@ -55,7 +55,7 @@ class StreamServer:
         files = os.listdir(videos_path)
         files.remove(".DS_Store")
 
-        for i, filename in enumerate(os.listdir(videos_path)):
+        for i, filename in enumerate(files):
             if filename == ".DS_Store":
                 continue
             video = Video(name=filename, id=i + 1)

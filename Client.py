@@ -6,7 +6,7 @@ import struct
 import threading
 import time
 import traceback
-# import pyaudio
+import pyaudio
 from enum import Enum
 
 import cv2
@@ -74,6 +74,7 @@ class Client(User):
 
         count = 0
         while True:
+            print("in while True")
             try:
                 if self.state == State.main_menu:
                     print('1. Connect to external servers.\n2. Login as admin.\n3. Exit.')
@@ -87,7 +88,6 @@ class Client(User):
                         elif inp == 2:
                             self.state = State.admin
                         else:
-                            print("here? pressed Exit")
                             break
                     except:
                         print('The command must be an integer from 1 to 3.')
@@ -153,7 +153,6 @@ class Client(User):
                         else:
                             print('Invalid message')
                     except:
-                        # traceback.print_exc()
                         print('Invalid message')
                         traceback.print_exc()
                 elif self.state == State.chat:
@@ -245,28 +244,30 @@ class Client(User):
                             print("Invalid Video Id")
 
             except Exception:
+                print("hereeeeeeeeeeeeee?")
                 traceback.print_exc()
                 if self.connection is not None:
                     self.connection.close()
                 break
+            print("here")
 
     def receive_audio(self):
 
         q = queue.Queue(maxsize=2000)
 
         BUFF_SIZE = 65536
-        # p = pyaudio.PyAudio()
-        # CHUNK = 4 * 1024
-        # stream = p.open(format=p.get_format_from_width(2),
-        #                 channels=2,
-        #                 rate=44100,
-        #                 output=True,
-        #                 frames_per_buffer=CHUNK)
+        p = pyaudio.PyAudio()
+        CHUNK = 4 * 1024
+        stream = p.open(format=p.get_format_from_width(2),
+                        channels=2,
+                        rate=44100,
+                        output=True,
+                        frames_per_buffer=CHUNK)
 
         while True:
             try:
                 frame = self.audio_stream_socket.recv(4 * 1024)
-                # stream.write(frame)
+                stream.write(frame)
             except:
                 pass
 
