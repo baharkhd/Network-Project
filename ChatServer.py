@@ -152,6 +152,7 @@ class ChatServer:
                     self.load_x(int(message_arr[1]), client, user1, user2)
                 elif message[1:] == 'exit':
                     state = 1
+                    # message_receiving_thread.
                     break
             else:
                 m = Message(message, datetime.now(), user1, user2)
@@ -186,12 +187,14 @@ class ChatServer:
     def receive_msg(self, client, state, user1: User, user2: User):
         while True:
             if state != 2:
+                print('goooooooooooooooh')
                 break
-            if user1.unreadMsgNum[user2.username]:
-                new_message = user1.messages[user2.username][-1]
-                msg = new_message.sender.username + ' ' + new_message.msg
-                client.send(msg.encode('ascii'))
-                user1.unreadMsgNum[user2.username] -= 1
+            else:
+                if user1.unreadMsgNum[user2.username]:
+                    new_message = user1.messages[user2.username][-1]
+                    msg = new_message.sender.username + ' ' + new_message.msg
+                    client.send(msg.encode('ascii'))
+                    user1.unreadMsgNum[user2.username] -= 1
                 # client.send(str(user1.unreadMsgNum[user2.username]).encode('ascii'))
                 # time.sleep(0.1)
                 # new_messages = user1.messages[user2.username][-user1.unreadMsgNum[user2.username]:]

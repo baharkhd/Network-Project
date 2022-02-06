@@ -5,13 +5,14 @@ import socket
 import struct
 import threading
 import time
+import traceback
 # import pyaudio
 from enum import Enum
-import traceback
 
 import cv2
-from commons import SEPARATOR
+
 from User import User
+from commons import SEPARATOR
 from commons import STREAM_SERVER_PORT, CHAT_SERVER_PORT
 
 number_pattern = re.compile("^[0-9]+$")
@@ -197,8 +198,8 @@ class Client(User):
                                     self.connection.send(command.encode('ascii'))
                                     self.load_x()
                                 elif command[1:] == 'exit':
-                                    self.chat_state = ChatStates.mailbox
                                     self.connection.send(command.encode('ascii'))
+                                    self.chat_state = ChatStates.mailbox
                                     break
                             else:
                                 self.connection.send(command.encode('ascii'))
@@ -288,8 +289,7 @@ class Client(User):
             print('Please enter your username.')
             username = input()
             if username == '0':
-                # Todo: change this message to just invalid
-                print('This username is already existed or invalid. Please enter another one.')
+                print('This username is invalid. Please enter another one.')
             else:
                 self.connection.send(username.encode('ascii'))
                 username_check = self.connection.recv(4096).decode('ascii')
@@ -335,12 +335,17 @@ class Client(User):
     def receive_msg(self):
         while True:
             if self.chat_state != ChatStates.chat:
+                print('an an an an an an an an an an annnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn')
                 break
             self.load_x()
             time.sleep(0.2)
 
     def load_x(self):
-        mess = self.connection.recv(4096).decode('ascii')
+        try:
+            mess = self.connection.recv(4096).decode('ascii')
+        except:
+            self.connection.send('-----'.encode('ascii'))
+            return
         if mess == 'Nothing to show!':
             print(mess)
         else:
@@ -352,7 +357,6 @@ class Client(User):
                     print(f'({sender}) {m}')
                 else:
                     print(m)
-
 
         # mess = self.connection.recv(4096).decode('ascii')
         # try:
