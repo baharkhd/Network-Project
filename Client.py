@@ -341,11 +341,11 @@ class Client(User):
             time.sleep(0.2)
 
     def load_x(self):
-        try:
-            mess = self.connection.recv(4096).decode('ascii')
-        except:
-            self.connection.send('-----'.encode('ascii'))
-            return
+        # try:
+        mess = self.connection.recv(4096).decode('ascii')
+        # except:
+        #     self.connection.send('-----'.encode('ascii'))
+        #     return
         if mess == 'Nothing to show!':
             print(mess)
         else:

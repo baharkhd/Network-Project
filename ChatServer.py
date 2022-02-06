@@ -190,11 +190,13 @@ class ChatServer:
                 print('goooooooooooooooh')
                 break
             else:
+                # print('ggggggggggggggggggggggggggggggggggggggggggggggg')
                 if user1.unreadMsgNum[user2.username]:
                     new_message = user1.messages[user2.username][-1]
                     msg = new_message.sender.username + ' ' + new_message.msg
                     client.send(msg.encode('ascii'))
                     user1.unreadMsgNum[user2.username] -= 1
+                    time.sleep(0.1)
                 # client.send(str(user1.unreadMsgNum[user2.username]).encode('ascii'))
                 # time.sleep(0.1)
                 # new_messages = user1.messages[user2.username][-user1.unreadMsgNum[user2.username]:]
