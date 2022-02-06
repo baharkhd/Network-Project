@@ -53,7 +53,8 @@ class StreamServer:
     def init_videos(self):
         videos_path = os.path.join(os.getcwd(), 'videos')
         files = os.listdir(videos_path)
-        files.remove(".DS_Store")
+        if ".DS_Store" in files:
+            files.remove(".DS_Store")
 
         for i, filename in enumerate(files):
             if filename == ".DS_Store":
