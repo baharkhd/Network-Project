@@ -5,7 +5,7 @@ import socket
 import struct
 import threading
 import time
-import pyaudio
+# import pyaudio
 from enum import Enum
 import traceback
 
@@ -265,18 +265,18 @@ class Client(User):
         q = queue.Queue(maxsize=2000)
 
         BUFF_SIZE = 65536
-        p = pyaudio.PyAudio()
-        CHUNK = 4 * 1024
-        stream = p.open(format=p.get_format_from_width(2),
-                        channels=2,
-                        rate=44100,
-                        output=True,
-                        frames_per_buffer=CHUNK)
+        # p = pyaudio.PyAudio()
+        # CHUNK = 4 * 1024
+        # stream = p.open(format=p.get_format_from_width(2),
+        #                 channels=2,
+        #                 rate=44100,
+        #                 output=True,
+        #                 frames_per_buffer=CHUNK)
 
         while True:
             try:
                 frame = self.audio_stream_socket.recv(4 * 1024)
-                stream.write(frame)
+                # stream.write(frame)
             except:
                 pass
 
@@ -341,19 +341,33 @@ class Client(User):
 
     def load_x(self):
         mess = self.connection.recv(4096).decode('ascii')
-        try:
-            message_count = int(mess)
-        except:
-            self.connection.send('----'.encode('ascii'))
-            return
-        for i in range(message_count):
-            msg = self.connection.recv(4096).decode('ascii')
-            first_space = msg.find(' ')
-            sender, m = msg[:first_space], msg[first_space + 1:]
-            if sender != self.username:
-                print(f'({sender}) {m}')
-            else:
-                print(m)
+        if mess == 'Nothing to show!':
+            print(mess)
+        else:
+            load_x_messages = mess.split(SEPARATOR)
+            for msg in load_x_messages:
+                first_space = msg.find(' ')
+                sender, m = msg[:first_space], msg[first_space + 1:]
+                if sender != self.username:
+                    print(f'({sender}) {m}')
+                else:
+                    print(m)
+
+
+        # mess = self.connection.recv(4096).decode('ascii')
+        # try:
+        #     message_count = int(mess)
+        # except:
+        #     self.connection.send('----'.encode('ascii'))
+        #     return
+        # for i in range(message_count):
+        #     msg = self.connection.recv(4096).decode('ascii')
+        #     first_space = msg.find(' ')
+        #     sender, m = msg[:first_space], msg[first_space + 1:]
+        #     if sender != self.username:
+        #         print(f'({sender}) {m}')
+        #     else:
+        #         print(m)
 
     def receive_video(self):
         print("receiving video...")

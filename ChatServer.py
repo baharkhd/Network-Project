@@ -128,7 +128,7 @@ class ChatServer:
         client.send(mailbox_message.encode('ascii'))
 
         message = client.recv(4096).decode('ascii').strip()
-        print("recieved ", message)
+        print("received ", message)
         if message == '0':
             return 0, None
         else:
@@ -157,11 +157,6 @@ class ChatServer:
                 m = Message(message, datetime.now(), user1, user2)
                 user1.messages[user2.username].append(m)
                 user2.messages[user1.username].append(m)
-                # print(f'message sent from {user1.username} to {user2.username}')
-                # for u in self.users:
-                #     print(f'{u.username}')
-                #     for i in u.messages[user1.username]:
-                #         print(i.msg)
                 user2.unreadMsgNum[user1.username] += 1
                 user1.unreadMsgNum[user2.username] = 0
 
@@ -169,31 +164,42 @@ class ChatServer:
 
     def load_x(self, k, client, user1: User, user2: User):
         messages_count = len(user1.messages[user2.username]) - 1  # one msg is additional (initial msg)
+        load_x_messages = []
         if messages_count < k:
             k = messages_count
-        client.send(str(k).encode('ascii'))
-        time.sleep(0.1)
-        if k == 0:
-            return
-        last_x_messages = user1.messages[user2.username][-k:]
-        for m in last_x_messages:
-            msg = m.sender.username + ' ' + m.msg
-            client.send(msg.encode('ascii'))
-            time.sleep(0.1)
+        if not k:
+            load_x_messages = 'Nothing to Show!'
+        # client.send(str(k).encode('ascii'))
+        # time.sleep(0.1)
+        # if k == 0:
+        #     return
+        else:
+            last_x_messages = user1.messages[user2.username][-k:]
+            for m in last_x_messages:
+                msg = m.sender.username + ' ' + m.msg
+                load_x_messages.append(msg)
+                # client.send(msg.encode('ascii'))
+                # time.sleep(0.1)
+            load_x_messages = SEPARATOR.join(load_x_messages)
+        client.send(load_x_messages.encode('ascii'))
 
     def receive_msg(self, client, state, user1: User, user2: User):
         while True:
             if state != 2:
                 break
             if user1.unreadMsgNum[user2.username]:
-                client.send(str(user1.unreadMsgNum[user2.username]).encode('ascii'))
-                time.sleep(0.1)
-                new_messages = user1.messages[user2.username][-user1.unreadMsgNum[user2.username]:]
-                for m in new_messages:
-                    user1.unreadMsgNum[user2.username] -= 1
-                    msg = m.sender.username + ' ' + m.msg
-                    client.send(msg.encode('ascii'))
-                    time.sleep(0.1)
+                new_message = user1.messages[user2.username][-1]
+                msg = new_message.sender.username + ' ' + new_message.msg
+                client.send(msg.encode('ascii'))
+                user1.unreadMsgNum[user2.username] -= 1
+                # client.send(str(user1.unreadMsgNum[user2.username]).encode('ascii'))
+                # time.sleep(0.1)
+                # new_messages = user1.messages[user2.username][-user1.unreadMsgNum[user2.username]:]
+                # for m in new_messages:
+                #     user1.unreadMsgNum[user2.username] -= 1
+                #     msg = m.sender.username + ' ' + m.msg
+                #     client.send(msg.encode('ascii'))
+                #     time.sleep(0.1)
 
 
 if __name__ == "__main__":
