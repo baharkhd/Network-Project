@@ -166,8 +166,8 @@ class Client(User):
                         elif command == '2':
                             self.login()
                         elif command == '3':
-                            pass
-                            # TODO exit
+                            self.connection.close()
+                            self.state = State.main_menu
                         else:
                             print('The command must be an integer from 1 to 3.')
                     elif self.chat_state == ChatStates.mailbox:
@@ -188,24 +188,13 @@ class Client(User):
                             self.connection.send('____'.encode('ascii'))
                             print('Invalid ID!')
                     elif self.chat_state == ChatStates.chat:
-                        self.load_x()
                         receive_new_message = threading.Thread(target=self.receive_msg, args=())
                         receive_new_message.start()
                         while True:
                             command = input()
-                            if command[0] == '/':
-                                if re.search('^load_\d+$', command[1:]):
-                                    self.connection.send(command.encode('ascii'))
-                                    self.load_x()
-                                elif command[1:] == 'exit':
-                                    self.connection.send(command.encode('ascii'))
-                                    self.chat_state = ChatStates.mailbox
-                                    break
-                            else:
-                                self.connection.send(command.encode('ascii'))
-
-
-
+                            if self.chat_state != ChatStates.chat:
+                                break
+                            self.connection.send(command.encode('ascii'))
 
                 elif self.state == State.stream:
                     if self.video_request_state == VideoRequestState.not_started:
@@ -334,44 +323,28 @@ class Client(User):
 
     def receive_msg(self):
         while True:
-            if self.chat_state != ChatStates.chat:
-                print('an an an an an an an an an an annnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn')
-                break
-            self.load_x()
-            time.sleep(0.2)
-
-    def load_x(self):
-        try:
             mess = self.connection.recv(4096).decode('ascii')
-        except:
-            self.connection.send('-----'.encode('ascii'))
-            return
-        if mess == 'Nothing to show!':
-            print(mess)
-        else:
-            load_x_messages = mess.split(SEPARATOR)
-            for msg in load_x_messages:
-                first_space = msg.find(' ')
-                sender, m = msg[:first_space], msg[first_space + 1:]
-                if sender != self.username:
-                    print(f'({sender}) {m}')
-                else:
-                    print(m)
+            if mess == 'exit chat':
+                self.chat_state = ChatStates.mailbox
+                break
 
-        # mess = self.connection.recv(4096).decode('ascii')
-        # try:
-        #     message_count = int(mess)
-        # except:
-        #     self.connection.send('----'.encode('ascii'))
-        #     return
-        # for i in range(message_count):
-        #     msg = self.connection.recv(4096).decode('ascii')
-        #     first_space = msg.find(' ')
-        #     sender, m = msg[:first_space], msg[first_space + 1:]
-        #     if sender != self.username:
-        #         print(f'({sender}) {m}')
-        #     else:
-        #         print(m)
+            if mess.startswith('load'):
+                if mess == 'loadNothing to show!':
+                    print('Nothing to show!')
+                else:
+                    load_x_messages = mess[4:].split(SEPARATOR)
+                    for msg in load_x_messages:
+                        first_space = msg.find(' ')
+                        sender, m = msg[:first_space], msg[first_space + 1:]
+                        if sender != self.username:
+                            print(f'({sender}) {m}')
+                        else:
+                            print(m)
+            else:
+                first_space = mess.find(' ')
+                sender, m = mess[:first_space], mess[first_space+1:]
+                print(f'({sender}) {m}')
+            time.sleep(0.2)
 
     def receive_video(self):
         print("receiving video...")
