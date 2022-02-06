@@ -57,6 +57,7 @@ class StreamServer:
             video = Video(name=filename, id=i + 1)
             self.videos.append(video)
 
+            # Todo: uncomment this line
             self.init_audio(video.name)
 
     def init_audio(self, filename):

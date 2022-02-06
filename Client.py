@@ -271,8 +271,11 @@ class Client(User):
                         frames_per_buffer=CHUNK)
 
         while True:
-            frame = self.audio_stream_socket.recv(4 * 1024)
-            stream.write(frame)
+            try:
+                frame = self.audio_stream_socket.recv(4 * 1024)
+                stream.write(frame)
+            except:
+                pass
 
     def chat_login_signup_menu(self):
         print('1. Sign Up\n2. Login\n3. Exit')
@@ -315,7 +318,6 @@ class Client(User):
             print(recv_message)
             return []
 
-
         users_messages = recv_message.split(SEPARATOR)
 
         for msg in users_messages:
@@ -352,30 +354,34 @@ class Client(User):
 
     def receive_video(self):
         print("receiving video...")
-        # Todo: receive video
 
         data = b""
         payload_size = struct.calcsize("Q")
 
         print("For quit streaming, you can click 'q' key...")
-        while True:
-            while len(data) < payload_size:
-                packet = self.video_stream_socket.recv(4 * 1024)  # 4K
-                if not packet: break
-                data += packet
-            packed_msg_size = data[:payload_size]
-            data = data[payload_size:]
-            msg_size = struct.unpack("Q", packed_msg_size)[0]
 
-            while len(data) < msg_size:
-                data += self.video_stream_socket.recv(4 * 1024)
-            frame_data = data[:msg_size]
-            data = data[msg_size:]
-            frame = pickle.loads(frame_data)
-            cv2.imshow("RECEIVING VIDEO", frame)
-            if cv2.waitKey(25) & 0xFF == ord('q'):
-                self.end_streaming()
-                break
+        try:
+            while True:
+                while len(data) < payload_size:
+                    packet = self.video_stream_socket.recv(4 * 1024)  # 4K
+                    if not packet: break
+                    data += packet
+                packed_msg_size = data[:payload_size]
+                data = data[payload_size:]
+                msg_size = struct.unpack("Q", packed_msg_size)[0]
+
+                while len(data) < msg_size:
+                    data += self.video_stream_socket.recv(4 * 1024)
+                frame_data = data[:msg_size]
+                data = data[msg_size:]
+                frame = pickle.loads(frame_data)
+                cv2.imshow("RECEIVING VIDEO", frame)
+                if cv2.waitKey(25) & 0xFF == ord('q'):
+                    break
+            self.end_streaming()
+        except:
+            traceback.print_exc()
+            self.end_streaming()
 
     def end_streaming(self):
         print("stream ended")
