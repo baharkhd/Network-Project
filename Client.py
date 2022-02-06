@@ -194,12 +194,15 @@ class Client(User):
                             command = input()
                             if command[0] == '/':
                                 if re.search('^load_\d+$', command[1:]):
+                                    self.connection.send(command.encode('ascii'))
                                     self.load_x()
                                 elif command[1:] == 'exit':
                                     self.chat_state = ChatStates.mailbox
                                     self.connection.send(command.encode('ascii'))
                                     break
-                            self.connection.send(command.encode('ascii'))
+                            else:
+                                self.connection.send(command.encode('ascii'))
+
 
 
 
