@@ -13,6 +13,7 @@ import time
 import moviepy.editor as mp
 from commons import SEPARATOR
 import wave
+from commons import CLOSE_COMMAND
 
 from commons import STREAM_SERVER_PORT
 
@@ -50,39 +51,15 @@ class StreamServer:
             client_thread = threading.Thread(target=self.handle, args=(client, address))
             client_thread.start()
 
-    def init_videos(self):
-        videos_path = os.path.join(os.getcwd(), 'videos')
-        files = os.listdir(videos_path)
-        if ".DS_Store" in files:
-            files.remove(".DS_Store")
-
-        for i, filename in enumerate(files):
-            if filename == ".DS_Store":
-                continue
-            video = Video(name=filename, id=i + 1)
-            self.videos.append(video)
-
-            self.init_audio(video.name)
-
-    def init_audio(self, filename):
-        if filename == ".DS_Store":
-            return
-        videos_path = os.path.join(os.getcwd(), 'videos')
-        audios_path = os.path.join(os.getcwd(), 'audios')
-
-        video_path = os.path.join(videos_path, filename)
-
-        audio_filename = filename.replace(".mp4", ".wav")
-        audio_path = os.path.join(audios_path, audio_filename)
-
-        my_clip = mp.VideoFileClip(video_path)
-        my_clip.audio.write_audiofile(audio_path)
-
 
     def handle(self, client, address):
         while True:
             message = client.recv(4096).decode('ascii').strip()
             print("* message received from client {}: ".format(address), message, type(message))
+
+            if message == CLOSE_COMMAND:
+                client.close()
+                break
 
             number_pattern = re.compile("^[0-9]+$")
 
@@ -164,6 +141,34 @@ class StreamServer:
         if vid:
             vid.release()
             cv2.destroyAllWindows()
+
+    def init_videos(self):
+        videos_path = os.path.join(os.getcwd(), 'videos')
+        files = os.listdir(videos_path)
+        if ".DS_Store" in files:
+            files.remove(".DS_Store")
+
+        for i, filename in enumerate(files):
+            if filename == ".DS_Store":
+                continue
+            video = Video(name=filename, id=i + 1)
+            self.videos.append(video)
+
+            self.init_audio(video.name)
+
+    def init_audio(self, filename):
+        if filename == ".DS_Store":
+            return
+        videos_path = os.path.join(os.getcwd(), 'videos')
+        audios_path = os.path.join(os.getcwd(), 'audios')
+
+        video_path = os.path.join(videos_path, filename)
+
+        audio_filename = filename.replace(".mp4", ".wav")
+        audio_path = os.path.join(audios_path, audio_filename)
+
+        my_clip = mp.VideoFileClip(video_path)
+        my_clip.audio.write_audiofile(audio_path)
 
 
 if __name__ == "__main__":

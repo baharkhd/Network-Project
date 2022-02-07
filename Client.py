@@ -12,8 +12,7 @@ from enum import Enum
 import cv2
 
 from User import User
-from commons import SEPARATOR
-from commons import STREAM_SERVER_PORT, CHAT_SERVER_PORT
+from commons import SEPARATOR, STREAM_SERVER_PORT, CHAT_SERVER_PORT, CLOSE_COMMAND
 
 number_pattern = re.compile("^[0-9]+$")
 
@@ -65,7 +64,10 @@ class Client(User):
         self.connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.video_stream_socket = None
         self.audio_stream_socket = None
+        self.recv_aud_thread = None
+
         self.start_client()
+
 
     def start_client(self):
         password = input('Please enter a password, this will be used for further changes'
@@ -74,7 +76,6 @@ class Client(User):
 
         count = 0
         while True:
-            print("in while True")
             try:
                 if self.state == State.main_menu:
                     print('1. Connect to external servers.\n2. Login as admin.\n3. Exit.')
@@ -222,7 +223,7 @@ class Client(User):
                             if video_id == '0':
                                 self.video_request_state = VideoRequestState.not_started
                                 self.state = State.main_menu
-                                self.connection.close()
+                                self.close_socket(self.connection)
                             else:
                                 self.video_request_state = VideoRequestState.idle
 
@@ -235,8 +236,8 @@ class Client(User):
                                     audio_stream_message.encode('ascii'))
                                 time.sleep(2)
 
-                                recv_aud_thread = threading.Thread(target=self.receive_audio, args=())
-                                recv_aud_thread.start()
+                                self.recv_aud_thread = threading.Thread(target=self.receive_audio, args=())
+                                self.recv_aud_thread.start()
                                 self.receive_video()
 
 
@@ -244,32 +245,10 @@ class Client(User):
                             print("Invalid Video Id")
 
             except Exception:
-                print("hereeeeeeeeeeeeee?")
                 traceback.print_exc()
                 if self.connection is not None:
                     self.connection.close()
                 break
-            print("here")
-
-    def receive_audio(self):
-
-        q = queue.Queue(maxsize=2000)
-
-        BUFF_SIZE = 65536
-        p = pyaudio.PyAudio()
-        CHUNK = 4 * 1024
-        stream = p.open(format=p.get_format_from_width(2),
-                        channels=2,
-                        rate=44100,
-                        output=True,
-                        frames_per_buffer=CHUNK)
-
-        while True:
-            try:
-                frame = self.audio_stream_socket.recv(4 * 1024)
-                stream.write(frame)
-            except:
-                pass
 
     def chat_login_signup_menu(self):
         print('1. Sign Up\n2. Login\n3. Exit')
@@ -347,6 +326,26 @@ class Client(User):
                 print(f'({sender}) {m}')
             time.sleep(0.2)
 
+    def receive_audio(self):
+
+        q = queue.Queue(maxsize=2000)
+
+        BUFF_SIZE = 65536
+        p = pyaudio.PyAudio()
+        CHUNK = 4 * 1024
+        stream = p.open(format=p.get_format_from_width(2),
+                        channels=2,
+                        rate=44100,
+                        output=True,
+                        frames_per_buffer=CHUNK)
+
+        while True:
+            try:
+                frame = self.audio_stream_socket.recv(4 * 1024)
+                stream.write(frame)
+            except Exception as e:
+                break
+
     def receive_video(self):
         print("receiving video...")
 
@@ -382,10 +381,15 @@ class Client(User):
         print("stream ended")
         cv2.destroyAllWindows()
         cv2.waitKey(1)
-        self.video_stream_socket.close()
-        self.audio_stream_socket.close()
+
+        self.close_socket(self.video_stream_socket)
+        self.close_socket(self.audio_stream_socket)
         time.sleep(1)
         self.video_request_state = VideoRequestState.not_started
+
+    def close_socket(self, sck: socket.socket):
+        sck.send(CLOSE_COMMAND.encode("ascii"))
+        sck.close()
 
     def check_video_id(self, vid_id):
         if not number_pattern.match(vid_id):
